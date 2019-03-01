@@ -5,12 +5,12 @@
 #   |_| |_____|_____|_____\____|_| \_\/_/   \_\_|  |_|____/ \___/ |_|
 
 # Users, who have access to send commands. In int
-users = [1234]
+users = [548392265]
 # Telegram bot token.
-tg_token = "1234567890:aabbccddwweegggfffsss"
+tg_token = "612093306:AAEWrcJyMhVbGA91aiXa_KnTpHwRKPQ1rLc"
 # Proxy. If you want to use proxy install requests[socks].
 # For example  {'https': 'socks5://127.0.0.1:9099'}
-proxy = False
+proxy = {'https': 'socks5://u0_a69@192.168.1.3:9050'}
 # Name of bot. Pls use Hanako <3
 name = "Hanako"
 #  _
