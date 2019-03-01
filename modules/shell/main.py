@@ -19,22 +19,22 @@ class CallException(Exception):
     pass
 
 
-def handle(text, message_obj, bot):
+def handle(message, bot):
     # TODO: Add restricted commands
     try:
-        args = text.split(" ")
+        args = message.text.split(" ")
         output = shellcommand(' '.join(args[1:]))
-        logger.info(f"{message_obj.from_user.id} executed {text}: {output}")
+        logger.info(f"{message.from_user.id} executed {message.text}: {output}")
         if output:
-            bot.reply_to(message_obj, output)
+            bot.reply_to(message, output)
         else:
-            bot.reply_to(message_obj, "Empty output")
+            bot.reply_to(message, "Empty output")
     except CommandCheckError:
         logger.warning("Shell access is not true")
-        bot.reply_to(message_obj, "Shell access is not true")
+        bot.reply_to(message, "Shell access is not true")
     except CallException as e:
-        logger.error(f"{message_obj.from_user.id} try to use {text} but exception occurred: {e}")
-        bot.reply_to(message_obj, e)
+        logger.error(f"{message.from_user.id} try to use {message.text} but exception occurred: {e}")
+        bot.reply_to(message, e)
 
 
 def shellcommand(command):

@@ -4,7 +4,7 @@ import core.config as config
 class Log:
     """Some logger for lib."""
 
-    def __init__(self, name='bot', level=logging.INFO):
+    def __init__(self, name='bot', level=logging.DEBUG):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(level)
         Formatter = logging.Formatter(config.logformat)

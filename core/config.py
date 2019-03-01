@@ -8,7 +8,10 @@
 users = [1234]
 # Telegram bot token.
 tg_token = "1234567890:aabbccddwweegggfffsss"
-#Name of bot. Pls use Hanakp <3
+# Proxy. If you want to use proxy install requests[socks].
+# For example  {'https': 'socks5://127.0.0.1:9099'}
+proxy = False
+# Name of bot. Pls use Hanako <3
 name = "Hanako"
 #  _
 # | |    ___   __ _ ___
@@ -17,11 +20,12 @@ name = "Hanako"
 # |_____\___/ \__, |___/
 #            |___/
 #
-#Format logs
+# Format logs
 logformat = "%(levelname)s [%(asctime)s] %(name)s : %(message)s"
-#Logfile
+# Logfile
 logfile = "log.txt"
-
+# Hanako version
+version = "0.2 indev"
 loadingfiglet = '''
  ____            _           _   _   _                   _         
 |  _ \ _ __ ___ (_) ___  ___| |_| | | | __ _ _ __   __ _| | _____  
@@ -30,3 +34,4 @@ loadingfiglet = '''
 |_|   |_|  \___// |\___|\___|\__|_| |_|\__,_|_| |_|\__,_|_|\_\___/ 
               |__/                                                 
 '''
+module_ignorelist = ['echo']
