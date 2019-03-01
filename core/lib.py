@@ -2,6 +2,7 @@ import logging
 import core.config as config
 import os
 
+
 class Log:
     """Some logger for lib."""
 
@@ -30,7 +31,8 @@ class Log:
     def error(self, *message):
         self.logger.error(" ".join(map(str, message)))
 
-class utils:
+
+class Utils:
     @staticmethod
     def htmlescape(text, quote=True):
         text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')

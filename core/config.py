@@ -5,12 +5,12 @@
 #   |_| |_____|_____|_____\____|_| \_\/_/   \_\_|  |_|____/ \___/ |_|
 
 # Users, who have access to send commands. In int
-users = [548392265]
+users = [1122334455]
 # Telegram bot token.
-tg_token = "612093306:AAEWrcJyMhVbGA91aiXa_KnTpHwRKPQ1rLc"
+tg_token = "1122334455:AAETpHwRKPQ1rLc91aiXa_KnTpHwRKPQ1rLc"
 # Proxy. If you want to use proxy install requests[socks].
 # For example  {'https': 'socks5://127.0.0.1:9099'}
-proxy = {'https': 'socks5://u0_a69@192.168.1.3:9050'}
+proxy = False
 # Name of bot. Pls use Hanako <3
 name = "Hanako"
 #  _
@@ -25,7 +25,7 @@ logformat = "%(levelname)s [%(asctime)s] %(name)s : %(message)s"
 # Logfile
 logfile = "log.txt"
 # Hanako version
-version = "0.2 indev"
+version = "0.3 indev"
 loadingfiglet = '''
  ____            _           _   _   _                   _         
 |  _ \ _ __ ___ (_) ___  ___| |_| | | | __ _ _ __   __ _| | _____  

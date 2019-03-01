@@ -6,3 +6,4 @@ if __name__ == '__main__':
     Hanako.start()
 
 # TODO: Add logging levels
+# TODO: Calendar, file downloader, calculator

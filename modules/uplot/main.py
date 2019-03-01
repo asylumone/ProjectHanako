@@ -19,6 +19,7 @@ def null_func(name):
         pass
     return null_func
 
+
 namespace = {
         k: getattr(_math, k)
         for k in dir(_math)
@@ -43,13 +44,16 @@ def calcvalues(func):
             ns['x'] = x
             y = eval(func, ns, ns)
             datasets[-1].append((x, y,),)
-        except:
+        except Exception:
             datasets.append([])
     return datasets
+
+
 def gc2ic(xy):
     ix = config.sizes['step'] * xy[0] + config.sizes['width'] // 2
     iy = config.sizes['height'] // 2 - config.sizes['step'] * xy[1]
     return ix, iy
+
 
 def handle(message, bot):
     logger.info('user %d started plotting %r'%(message.from_user.id, message.text))
@@ -73,13 +77,11 @@ def handle(message, bot):
         ln = [gc2ic(pnt) for pnt in ds]
         dr.line(ln, fill=config.colors['curve'], width=config.sizes['curvewidth'])
 
-
-
     name = 'tmp-draw%d.png'%crc32(func.encode())
     im.save(name)
     bot.send_photo(message.chat.id,
             open(name, 'rb'),
-            caption='<pre>y = %s</pre>'%lib.utils.htmlescape(func),
+            caption='<pre>y = %s</pre>'%lib.Utils.htmlescape(func),
             parse_mode='html',
             reply_to_message_id=message.message_id)
     os.remove(name)
