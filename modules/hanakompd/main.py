@@ -66,7 +66,7 @@ def handle(message, bot):
 <b>File:</b> <pre>{file}</pre>'''.format(
     artist=r.get('artist', 'Unknown'),
     title=r.get('title', 'Unknown'),
-    file=r.get('file', '--- no data ---')))
+    file=r.get('file', '--- no data ---')), parse_mode='html')
 
     elif cmd in ('next', 'nextsong'):
         s, r = mpd_query('next')
@@ -79,12 +79,30 @@ def handle(message, bot):
             return
         bot.reply_to(message, '<pre>%s</pre>'%lib.Utils.htmlescape(r.get('file')), parse_mode='html')
 
+    elif cmd in ('prev', 'previous', 'back'):
+        s, r = mpd_query('previous')
+        if not s:
+            bot.reply_to(message, '<pre>%s</pre>'%lib.Utils.htmlescape(r), parse_mode='html')
+            return
+        s, r = mpd_query('currentsong')
+        if not s:
+            bot.reply_to(message, '<pre>%s</pre>'%lib.Utils.htmlescape(r), parse_mode='html')
+            return
+        bot.reply_to(message, '<pre>%s</pre>'%lib.Utils.htmlescape(r.get('file')), parse_mode='html')
+
+    elif cmd in ('vol', 'volume', 'setvol'):
+        s, r = mpd_query('setvol')
+        if not s:
+            bot.reply_to(message, '<pre>%s</pre>'%lib.Utils.htmlescape(r), parse_mode='html')
+            return
+        bot.reply_to(message, 'OK')
+
     else:
         s, r = mpd_query('status')
         if not s:
             r = {'error': r}
         bot.reply_to(message, '''\
-<b>HanakoMPD module by undefined_value<b>
+<b>HanakoMPD module by undefined_value</b>
 Type /mpc help for more help
 Current status: {play_state}
 Error level: {error}
