@@ -42,8 +42,7 @@ def mpd_query(rq, *args):
 def handle(message, bot):
     params = shlex.split(message.text)
     if len(params) < 2:
-        bot.reply_to(message, '<b>Not enough parameters</b>', parse_mode='html')
-        return
+        params.append(None)
     _, cmd, *params = params
     if cmd == 'play':
         s, r = mpd_query('play')
@@ -91,11 +90,45 @@ def handle(message, bot):
         bot.reply_to(message, '<pre>%s</pre>'%lib.Utils.htmlescape(r.get('file')), parse_mode='html')
 
     elif cmd in ('vol', 'volume', 'setvol'):
-        s, r = mpd_query('setvol')
+        s, r = mpd_query('setvol', params[0])
         if not s:
             bot.reply_to(message, '<pre>%s</pre>'%lib.Utils.htmlescape(r), parse_mode='html')
             return
-        bot.reply_to(message, 'OK')
+        bot.reply_to(message, 'setvol(%s): OK'%params[0])
+
+    elif cmd in ('status'):
+        s, r = mpd_query('status')
+        if not s:
+            bot.reply_to(message, '<pre>%s</pre>'%lib.Utils.htmlescape(r), parse_mode='html')
+            return
+        output = ''
+        for k, v in r.items():
+            output += '<b>%s</b>=<code>%r</code>\n'%(k, v)
+        bot.reply_to(message, output, parse_mode='html')
+
+    elif cmd == 'query':
+        if len(params) < 1:
+            bot.reply_to(message, '<b>Not enough arguments</b>', parse_mode='html')
+            return
+        s, r = mpd_query(params[0], *params[1:])
+        if isinstance(r, dict):
+            output = ''
+            for k, v in r.items():
+                output += '<b>%s</b>: <code>%s</code>\n'%(k, lib.Utils.htmlescape(v))
+        else:
+            output = '<pre>%s</pre>'%lib.Utils.htmlescape(repr(r))
+        bot.reply_to(message, output, parse_mode='html')
+
+    elif cmd in ('help', 'man', '?'):
+        bot.reply_to(message, '''\
+<b>HanakoMPD module by </b><a href="tg://resolve?domain=undefined_value">undefined_value</a>
+Commands list:
+/mpc next/nextsong -&gt; play next song
+/mpc prev/previous/back -&gt; play previous song
+/mpv vol/volume/setvol <i>[volume]</i> -&gt; set volume
+/mpc now/current/currentsong -&gt; print current song
+/mpc status -&gt; print MPD status
+/mpc query <i>[command]</i> <i>[..args..]</i>''', parse_mode='html')
 
     else:
         s, r = mpd_query('status')
