@@ -1,5 +1,6 @@
-import modules.uplot.config as config
+import modules.hanakompd.config as config
 import core.lib as lib
+import shlex
 try:
     import mpd
 except:
@@ -16,20 +17,27 @@ logger = lib.Log('HanakoMPD')
 
 def mpd_query(rq, *args):
     mpc = mpd.MPDClient()
+    logger.info('mpc.%s%r'%(rq, args))
     try:
         mpc.connect(config.host, config.port)
-        mpc.password(config.password)
+        if config.password:
+            mpc.password(config.password)
     except ConnectionRefusedError as e:
+        logger.warning('mpc.error: %r'%e)
         return False, repr(e)
     except mpd.CommandError as e:
+        logger.warning('mpc.error: %r'%e)
         pass
     except Exception as e:
+        logger.warning('mpc.error: %r'%e)
         return False, repr(e)
-    finally:
-        try:
-            return True, getattr(mpc, rq)(*args)
-        except Exception as e:
-            return False, repr(e)
+    try:
+        response = getattr(mpc, rq)(*args)
+        logger.info('mpc.result: %r'%response)
+        return True, response
+    except Exception as e:
+        logger.warning('mpc.error: %r'%e)
+        return False, repr(e)
 
 def handle(message, bot):
     params = shlex.split(message.text)
@@ -83,6 +91,6 @@ Error level: {error}
 Volume: {volume}%'''.format(
     play_state=r.get('state', 'N/A'),
     error=r.get('error', ''),
-    volume=r.get('volume', 'N/A')))
+    volume=r.get('volume', 'N/A')), parse_mode='html')
 
 
