@@ -25,7 +25,7 @@ logformat = "%(levelname)s [%(asctime)s] %(name)s : %(message)s"
 # Logfile
 logfile = "log.txt"
 # Hanako version
-version = "0.3 indev"
+version = "0.4 indev"
 loadingfiglet = '''
  ____            _           _   _   _                   _         
 |  _ \ _ __ ___ (_) ___  ___| |_| | | | __ _ _ __   __ _| | _____  
