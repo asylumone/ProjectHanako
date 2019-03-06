@@ -1,3 +1,4 @@
 > add README.md
-> update requirements.txt
 > optimize module 'uplot'
+# TODO: Add logging levels
+# TODO: Calendar, file downloader, calculator

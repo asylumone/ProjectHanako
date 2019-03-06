@@ -1,7 +1,10 @@
 certifi==2018.11.29
 chardet==3.0.4
 idna==2.8
+Pillow==5.4.1
+PySocks==1.6.8
 pyTelegramBotAPI==3.6.6
+PyYAML==3.13
 requests==2.21.0
 six==1.12.0
 urllib3==1.24.1

@@ -21,7 +21,7 @@ class Core:
                         self.logger.info(f"{message.from_user.id} sended command: {message.text}")
                         args = message.text.split(" ")[0]
                         if args in HANDLERS:
-                            HANDLERS[args](message, self.bot)
+                            HANDLERS[args]["handle"](message, self.bot)
                         else:
                             self.logger.info(f"{message.from_user.id} sended unknown command: {message.text}")
                             self.bot.send_message(message.from_user.id, "Unknown command.")
@@ -57,26 +57,7 @@ class HanakoModule:
     logger = lib.Log(name="Hanako Module")
 
     @staticmethod
-    def handler(message, bot):
-
-        """Message handler"""
-        command = message.text.split(" ")[1]
-        if len(command) == 1:
-            bot.send_message(message.from_user.id, "Sended empty message.")
-        elif command == "get_modules":
-            HanakoModule.get_modules(message, bot)
-        elif command == "disable_module":
-            HanakoModule.disable_module(message, bot)
-        elif command == 'load_modules':
-            HanakoModule.load_modules()
-        elif command == 'get_module_info':
-            HanakoModule.get_module_info(message, bot)
-        else:
-            bot.send_message(message.from_user.id, "Sended unknown message")
-
-    @staticmethod
     def load_modules():
-        #  TODO: Rewrite
         """Loading modules from module dir"""
         try:
             for importer, modname, ispkg in pkgutil.iter_modules(["modules"]):
@@ -85,54 +66,82 @@ class HanakoModule:
                     if modname in config.module_ignorelist:
                         HanakoModule.logger.debug(f"{modname} module founded in ignore list, ignoring...")
                     else:
-                        HANDLERS.update({str(getattr(modules, modname).main.command): getattr(modules, modname).main.handle})
-                        HanakoModule.logger.info(f"Loaded handler for {modname}")
+                        isloaded = HanakoModule.load_module(modname)
+                        if isloaded:
+                            HanakoModule.logger.info(f"Loaded info for {modname}")
                 except Exception as e:
                     HanakoModule.logger.error(f"While loading module {modname} exception occurred: {e}")
+                    return False
         except Exception as e:
             HanakoModule.logger.error(f"While loading modules exception occurred: {e}")
+        else:
+            return True
         finally:
             HanakoModule.logger.debug(f"Ended loading handlers. Handlers: {HANDLERS.items()}")
             HanakoModule.logger.info("Modules loaded!")
 
     @staticmethod
-    def get_modules(message, bot):
-        """Returns loaded modules"""
-        modules = "Loaded modules: \n"
-        for module in HANDLERS.keys():
-            modules += module + "\n"
-        modules += "Unloaded or ignored modules: \n"
-        for module in config.module_ignorelist:
-            modules += module + "\n"
-        print(config.module_ignorelist)
-        bot.send_message(message.from_user.id, modules)
-
-    @staticmethod
-    def disable_module(message, bot):
-        """Remove modules from HANDLER"""
-        module = message.text.split(" ")[2]
+    def get_modules():
         try:
-            del HANDLERS[module]
-            config.module_ignorelist.append(module[1::])
-        except KeyError:
-            bot.send_message(message.from_user.id, f"No module found {module}")
-            HanakoModule.logger.error(f"No module found {module}")
+            commandlist = list(HANDLERS.keys())
+            loaded = []
+            for module in commandlist:
+                loaded.append(HANDLERS[module]['pkgname'])
+        except Exception as e:
+            HanakoModule.logger.error(f"Error while get modules: {e}")
+            return []
         else:
-            bot.send_message(message.from_user.id, f"Removed {module}")
+            return {
+                "loaded": loaded,
+                "unloaded": config.module_ignorelist
+            }
 
     @staticmethod
-    def get_module_info(message, bot):
-        module = message.text.split(" ")[2]
+    def load_module(module):
         try:
-            info = f'''
-            Name: {str(getattr(modules, module).main.name)}\n
-Author: {str(getattr(modules, module).main.author)}\n
-Command: {str(getattr(modules, module).main.command)}\n
-Descriprion: {str(getattr(modules, module).main.description)}\n
-Version: {str(getattr(modules, module).main.version)}'''
-            bot.send_message(message.from_user.id, info)
-        except Exception:
-            HanakoModule.logger.error(traceback.format_exc())
+            HANDLERS.update({
+                str(getattr(modules, module).main.command): {
+                    "handle": getattr(modules, module).main.handle,
+                    "pkgname": module,
+                    "name": getattr(modules, module).main.name,
+                    "author": getattr(modules, module).main.author,
+                    "description": getattr(modules, module).main.description,
+                    "version": getattr(modules, module).main.version
+                }
+            })
+        except Exception as e:
+            HanakoModule.logger.error(f"While loading module {module} exception occurred: {e}")
+            return False
+        else:
+            return True
+
+    @staticmethod
+    def remove_from_ignorelist(module):
+        try:
+            config.module_ignorelist.remove(module)
+        except KeyError:
+            return False
+        else:
+            return True
+
+    @staticmethod
+    def disable_module(command):
+        try:
+            config.module_ignorelist.append(HANDLERS[command]["pkgname"])
+            del HANDLERS[command]
+        except KeyError:
+            return False
+        else:
+            return True
+
+    @staticmethod
+    def get_module_info(command):
+        return HANDLERS[command]
+
+    @staticmethod
+    def get_handlers():
+        return HANDLERS
 
 
-HANDLERS = {"/hanako": HanakoModule.handler, }
+HANDLERS = {}
+
