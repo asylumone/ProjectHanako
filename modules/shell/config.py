@@ -1,1 +1,2 @@
 shell = True
+restrictedArgs = ["rm"]

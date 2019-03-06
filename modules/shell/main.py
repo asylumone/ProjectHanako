@@ -1,6 +1,7 @@
 import modules.shell.config as config
 import core.lib as lib
 import subprocess
+from telebot import util
 
 author = "kiriharu"
 name = "Shell module"
@@ -19,14 +20,22 @@ class CallException(Exception):
     pass
 
 
+class RestrictedCommandException(Exception):
+    pass
+
+
 def handle(message, bot):
-    # TODO: Add restricted commands
     try:
         args = message.text.split(" ")
-        output = shellcommand(' '.join(args[1:]))
-        logger.info(f"{message.from_user.id} executed {message.text}: {output}")
+        output = shell_command(' '.join(args[1:]))
+        logger.info(f"{message.from_user.id} executed {message.text}")
         if output:
-            bot.reply_to(message, output)
+            try:
+                bot.reply_to(message, output)
+            except:
+                splited_text = util.split_string(output, 3000)
+                for text in splited_text:
+                    bot.send_message(message.from_user.id, text)
         else:
             bot.reply_to(message, "Empty output")
     except CommandCheckError:
@@ -35,12 +44,19 @@ def handle(message, bot):
     except CallException as e:
         logger.error(f"{message.from_user.id} try to use {message.text} but exception occurred: {e}")
         bot.reply_to(message, e)
+    except RestrictedCommandException:
+        bot.reply_to(message, "Command restricted.")
 
 
-def shellcommand(command):
+def shell_command(cmd):
     if config.shell:
         try:
-            output = subprocess.check_output([command], encoding='UTF-8', shell=True,
+            args = cmd.split(" ")
+            for part in args:
+                if part in config.restrictedArgs:
+                    logger.warning(f"Found restricted part in command: {part}. Full command: {cmd}")
+                    raise RestrictedCommandException
+            output = subprocess.check_output([cmd], encoding='UTF-8', shell=True,
                                              stderr=subprocess.STDOUT)
             return output
         except subprocess.CalledProcessError as e:

@@ -1,5 +1,5 @@
 import core.lib as lib
-from modules.todo.yaml_driver import YAMLProvider
+from core.lib import YAMLProvider
 
 author = "kiriharu"
 name = "TODO"
@@ -13,7 +13,7 @@ command = "/todo"
 
 moduledir = lib.Utils.modulepath("modules.todo.main")
 logger = lib.Log("TODO")
-todo = YAMLProvider(f"{moduledir}/todo.yml")
+todo = YAMLProvider(f"{moduledir}/todo.yml", type=[])
 
 
 def handle(message, bot):
@@ -33,7 +33,6 @@ def handle(message, bot):
 def new_todo(message, bot):
     data = todo.load()
     todo_msg = str(' '.join(message.text.split(' ')[2:]))
-    print(todo_msg)
     data.append(todo_msg)
     todo.save(data)
     logger.debug(f"Saved todo: {todo_msg}")
