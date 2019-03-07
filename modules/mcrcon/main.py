@@ -5,7 +5,12 @@ from modules.mcrcon.rcon import McRcon
 
 author = "kiriharu"
 name = "MCRcon module"
-description = '''This module can send messages to RCON minecraft port. '''
+description = '''
+This module can send messages to RCON minecraft port. 
+/mcrcon ["add", "+", "create", "new", "set"] servername host port password - Add server to the config.
+/mcrcon ["remove", "-", "delete", "del"] servername - Remove server from config.
+/mcrcon ["send", "push", "s", "call", "command"] servername command - Send command to server
+'''
 version = '0.1'
 command = '/mcrcon'
 
@@ -18,10 +23,14 @@ def handle(message, bot):
     args = message.text.split(" ")
     if args[1] in ["add", "+", "create", "new", "set"]:
         add_server(message, bot)
-    if args[1] in ["remove", "-", "delete", "del"]:
+    elif args[1] in ["remove", "-", "delete", "del"]:
         remove_server(message, bot)
-    if args[1] in ["send", "push", "s", "call", "command"]:
+    elif args[1] in ["send", "push", "s", "call", "command"]:
         send_command(message, bot)
+    elif args[1] in ["help", "h", "givehelp", "hanako"]:
+        bot.send_message(message.from_user.id, f"<pre> {description} </pre>", parse_mode='html')
+    else:
+        bot.send_message(message.from_user.id, "Unknown command. Type /mcrcon help")
 
 
 def add_server(message, bot):

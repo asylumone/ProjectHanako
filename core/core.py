@@ -63,12 +63,9 @@ class HanakoModule:
             for importer, modname, ispkg in pkgutil.iter_modules(["modules"]):
                 try:
                     HanakoModule.logger.debug(f"Found module {modname} (is module: {ispkg})")
-                    if modname in config.module_ignorelist:
-                        HanakoModule.logger.debug(f"{modname} module founded in ignore list, ignoring...")
-                    else:
-                        isloaded = HanakoModule.load_module(modname)
-                        if isloaded:
-                            HanakoModule.logger.info(f"Loaded info for {modname}")
+                    isloaded = HanakoModule.load_module(modname)
+                    if isloaded:
+                        HanakoModule.logger.info(f"Loaded info for {modname}")
                 except Exception as e:
                     HanakoModule.logger.error(f"While loading module {modname} exception occurred: {e}")
                     return False
@@ -98,6 +95,9 @@ class HanakoModule:
 
     @staticmethod
     def load_module(module):
+        if module in config.module_ignorelist:
+            HanakoModule.logger.debug(f"{module} module founded in ignore list, ignoring...")
+            return False
         try:
             HANDLERS.update({
                 str(getattr(modules, module).main.command): {
@@ -128,8 +128,9 @@ class HanakoModule:
     def disable_module(command):
         try:
             config.module_ignorelist.append(HANDLERS[command]["pkgname"])
-            del HANDLERS[command]
-        except KeyError:
+            HANDLERS.pop(command)
+        except KeyError as e:
+            HanakoModule.logger.error(f"Problems while trying to disable module: {e}")
             return False
         else:
             return True

@@ -15,6 +15,7 @@ command = '/mpc'
 
 logger = lib.Log('HanakoMPD')
 
+
 def mpd_query(rq, *args):
     mpc = mpd.MPDClient()
     logger.info('mpc.%s%r'%(rq, args))
@@ -38,6 +39,7 @@ def mpd_query(rq, *args):
     except Exception as e:
         logger.warning('mpc.error: %r'%e)
         return False, repr(e)
+
 
 def handle(message, bot):
     params = shlex.split(message.text)
