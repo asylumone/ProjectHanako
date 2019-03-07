@@ -18,7 +18,7 @@ Commands:
 version = '0.0.1'
 command = '/hanako'
 
-logger = lib.Log("TODO")
+logger = lib.Log("Hanako manager")
 
 
 def handle(message, bot):
