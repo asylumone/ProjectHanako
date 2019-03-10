@@ -1,0 +1,4 @@
+# proxy defined as ip:port type
+# as follows:
+# 1.1.1.1:1111 http
+# WARN: only http works correctly now
