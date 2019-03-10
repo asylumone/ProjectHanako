@@ -25,7 +25,7 @@ def handle(message, bot):
             try:
                 book = book_choice[message.from_user.id][book_num]
                 print(f'sending book {book["title"]}')
-                filename = book.load_book('fb2',str(message.from_user.id))
+                filename = book.load_book(str(message.from_user.id))
                 with open(filename, 'rb') as bookfile:
                     bot.send_document(message.chat.id, bookfile)
                 del book_choice[message.from_user.id]
