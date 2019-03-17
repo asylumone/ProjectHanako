@@ -1,0 +1,9 @@
+# Config for flibusta search
+
+#local_catalog = None                 # local fb catalogue (NOT IMPLEMENTED YET)
+proxy_list_filename = proxy_list.txt  # name of file containing proxies
+force_proxy = True                  # if False proxy will only be use if can't access site directly
+file_timeout = 15                     # timeout for file retrieve
+threaded_parse = 2                    # Number of threads used for parsing
+
+book_limit = 5                       # how many books shall be returned

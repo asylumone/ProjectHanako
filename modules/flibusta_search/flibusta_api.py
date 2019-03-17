@@ -1,10 +1,16 @@
 import socket
 import json
 from threading import Thread
+import logging
 
 from urllib.parse import urlencode
 from urllib import request
+from urllib.error import URLError
 from bs4 import BeautifulSoup
+import socks
+from sockshandler import SocksiPyHandler
+
+logging.basicConfig(filename='flibusta_api.log', level=logging.NOTSET)
 
 
 def remove_empty(d: dict):
@@ -23,11 +29,64 @@ def load_genres_list(gf_name='flibusta_genre_codes.json'):
             genres = json.load(genres_file)
         return genres
     except FileNotFoundError:
-        print(f'File {gf_name} wasn\'t found')
+        logging.error(f'File {gf_name} wasn\'t found')
+        return None
+
+
+def load_config(config_name='config.txt'):
+    try:
+        with open(config_name, 'r') as config_file:
+            lines = config_file.read().split('\n')
+            params = {}
+            for line in lines:
+                if line.strip().startswith('#'):
+                    continue
+                while '  ' in line:
+                    line = line.replace('  ', ' ')
+                if '#' in line:
+                    line = line[:line.find('#')]
+                p_v = line.strip().split('=')
+                while '' in p_v:
+                    p_v.remove('')
+
+                if len(p_v) == 1:
+                    continue
+                elif len(p_v) == 0:
+                    continue
+                else:
+                    param = p_v[0].strip()
+                    value = p_v[1].strip()
+
+                    while True:  # my crappy autotyping
+                        if value.isdigit():
+                            value = int(value)
+                            break
+                        if '.' in value and value.replace('.', '').isdigit():
+                            value = float(value)
+                            break
+                        if value in ['None', 'none']:
+                            value = None
+                            break
+                        if value in ['True', 'true']:
+                            value = True
+                            break
+                        if value in ['False', 'false']:
+                            value = False
+                            break
+                        break
+                    params[param] = value
+
+            if len(params) == 0:
+                return None
+            else:
+                return params
+    except FileNotFoundError:
         return None
 
 
 def load_proxy_list(list_filename='proxy_list.txt'):
+    if list_filename is None:
+        return None
     try:
         with open(list_filename, 'r') as list_file:
             lines = list_file.read().split('\n')
@@ -42,7 +101,7 @@ def load_proxy_list(list_filename='proxy_list.txt'):
                     ip_type.remove('')
 
                 if len(ip_type) == 1:
-                    print(f'Proxy type not defined for {ip_type[0]}')
+                    logging.warn(f'Proxy type not defined for {ip_type[0]}')
                     continue
                 elif len(ip_type) == 0:
                     continue
@@ -60,7 +119,17 @@ def load_proxy_list(list_filename='proxy_list.txt'):
 
 
 def split_list(l: list, n: int):
-    new_list_len = round(len(l) / n)
+    rev = False
+    if 0 < n > len(l):
+        n = len(l)
+    elif n < 0:
+        n = abs(n)
+        if n > len(l):
+            n = len(l)
+        rev = True
+    elif n == 0:
+        raise ZeroDivisionError
+    new_list_len = (round(len(l) / n))
     odd = len(l) % n
     list_of_lists = []
     for k in range(n):
@@ -84,6 +153,10 @@ def split_list(l: list, n: int):
             except IndexError:
                 break
         list_of_lists.append(new_list)
+    while [] in list_of_lists:
+        list_of_lists.remove([])
+    if rev:
+        list_of_lists.reverse()
     return list_of_lists
 
 
@@ -194,32 +267,32 @@ class Book(dict):
     def load_book(self, filename, form=None):
         link, form = self.get_download_link(form)
         if link is None:
-            print('Error: Loading failed. No valid link found for given format.')
+            logging.error('Loading failed. No valid link found for given format.')
             return False
         else:
             req = request.Request(link)
-            if self.fb_inst.proxy_index > -1:
+            pindex = self.fb_inst.proxy_index
+            if pindex > -1 and self.fb_inst.proxies[pindex][1] not in ['socks4', 'socks5']:
                 proxy = self.fb_inst.proxies[self.fb_inst.proxy_index]
-                req.set_proxy(proxy[0], proxy[1])  # ISSUE: proxy set but still cant bypass provider block
-                print(f'proxy set to {proxy}')
-
-            print(f'try loading {link} to {filename+"."+form}')
+                req.set_proxy(proxy[0], proxy[1])
             try:
                 data = request.urlopen(req, timeout=self.fb_inst.file_timeout).read()
                 if b'<!DOCTYPE html>' in data:
-                    print('Error: got html for some reason.. Most probalby it is provider plug.')
+                    logging.error(' got html for some reason.. Most probalby it is provider plug.')
                     return None
+                if 'Доступ к книге ограничен'.encode() in data:
+                    return 'book blocked'
                 else:
                     with open(filename + "." + form, 'wb') as book_file:
                         book_file.write(data)
             except socket.timeout:
-                print(f'Error: Could not get file in {self.fb_inst.file_timeout} seconds')
+                logging.error(f' Could not get file in {self.fb_inst.file_timeout} seconds')
                 return None
 
-            print(f'File {filename+"."+form} loaded')
+            logging.info(f'File {filename+"."+form} loaded')
             return filename + '.' + form
 
-    def get_download_link(self, f=None):
+    def get_download_link(self, f=None, invalid=None):
         """returns download link and format to file of given format(f) string or list
         if no format given, returns first existing link in ['fb2', 'epub', 'mobi', 'djvu'] format list"""
 
@@ -292,20 +365,28 @@ class Flibusta:
         make_book_list - standard flibusta query
         """
     genre_codes = load_genres_list()
+    web_domains = ('http://flibusta.site/', 'http://flibusta.is/')
 
-    def __init__(self, web_domains=('http://flibusta.site/', 'http://flibusta.is/'),
-                 local_catalogue=None,
+    def __init__(self, local_catalog=None,
                  proxies=None, force_proxy=False, file_timeout=10,
-                 threaded_parse=0):
-
-        self.web_domains = web_domains
-        self.local_catalogue = local_catalogue
-        self.proxies = proxies
-        self.force_proxy = force_proxy
-        self.proxy_index = -1
-        self.domain_index = 0
-        self.file_timeout = file_timeout
-        self.threaded_parse = threaded_parse
+                 threaded_parse=0, config=None):
+        self.config = config
+        if config is None:
+            self.local_catalog = local_catalog
+            self.proxies = proxies
+            self.force_proxy = force_proxy
+            self.proxy_index = -1
+            self.domain_index = 0
+            self.file_timeout = file_timeout
+            self.threaded_parse = threaded_parse
+        else:
+            self.local_catalog = config.get('local_catalog')
+            self.proxies = load_proxy_list(config.get('proxy_list_filename'))
+            self.force_proxy = config.get('force_proxy', False)
+            self.proxy_index = -1
+            self.domain_index = 0
+            self.file_timeout = config.get('file_timeout')
+            self.threaded_parse = config.get('threaded_parse')
 
     @staticmethod
     def _pack_params(params):
@@ -337,21 +418,48 @@ class Flibusta:
 
     @staticmethod
     def set_current_proxy(req_obj: request.Request, proxy: tuple):
-        req_obj.set_proxy(proxy[0], proxy[1])
+        if proxy[1] == 'socks5':
+            opener = request.build_opener(
+                SocksiPyHandler(socks.PROXY_TYPE_SOCKS5,
+                                proxy[0].split(':')[0],
+                                int(proxy[0].split(':')[1])))
+            request.install_opener(opener)
+        elif proxy[1] == 'socks4':
+            opener = request.build_opener(
+                SocksiPyHandler(socks.PROXY_TYPE_SOCKS4,
+                                proxy[0].split(':')[0],
+                                int(proxy[0].split(':')[1])))
+            request.install_opener(opener)
+        else:
+            proxy_handler = request.ProxyHandler({proxy[1]: proxy[0]})
+            opener = request.build_opener(proxy_handler)
+            request.install_opener(opener)
+        logging.info(f'proxy set to {proxy}')
 
     def _perform_request(self, url, required_part=None):
 
         req = request.Request(url)
         # Setting up a proxy if needed
-        if self.proxy_index != -1:
-            self.set_current_proxy(req, self.proxies[self.proxy_index])
-        elif self.proxies and self.force_proxy:
-            while self.proxy_index <= -1:
-                self.proxy_index += 1
-            self.set_current_proxy(req, self.proxies[self.proxy_index])
+        try:
+            if len(self.proxies) > self.proxy_index != -1:
+                self.set_current_proxy(req, self.proxies[self.proxy_index])
+            elif self.proxy_index >= len(self.proxies):
+                return 'noway'
+            elif self.proxies and self.force_proxy:
+                while self.proxy_index <= -1:
+                    self.proxy_index += 1
+                self.set_current_proxy(req, self.proxies[self.proxy_index])
+        except TypeError:
+            pass
 
         # Getting data
-        response = request.urlopen(req)
+        logging.info(f'loading {url}')
+        try:
+            response = request.urlopen(req)
+        except URLError as err:
+            logging.error(err)
+            self.proxy_index += 1
+            return None
         if response.getcode() == 200:
             data = response.read().decode()
             if required_part is None or 'Не нашлось ни единой книги, удовлетворяющей вашим требованиям.' in data:
@@ -360,16 +468,12 @@ class Flibusta:
                 if required_part in data:
                     return data
                 else:
-                    print('Got unexpected response')
                     self.proxy_index += 1
-                    print(f'proxy set to {self.proxies[self.proxy_index][0]}')
                     return None
             elif isinstance(required_part, list):
                 for i in required_part:
                     if i not in data:
-                        print('Got unexpected responce')
                         self.proxy_index += 1
-                        print(f'proxy set to {self.proxies[self.proxy_index][0]}')
                         return None
         elif response.getcode() == 404:
             self.domain_index += 1
@@ -385,7 +489,10 @@ class Flibusta:
         container = soup.form.extract()
         book_htmls = container('div')
 
-        if self.threaded_parse:
+        while len(book_htmls) > limit > 0:
+            book_htmls.pop()
+
+        if self.threaded_parse > 1:
             parse_data_sets = split_list(book_htmls, self.threaded_parse)
             parsers = []
             for i in parse_data_sets:
@@ -396,51 +503,11 @@ class Flibusta:
             for parser in parsers:
                 books.extend(parser.get_result())
             return books
+        else:
+            p = ThreadedParse(self, book_htmls, force_description)
+            p.start_parse()
+            books = p.get_result()
 
-        old_genre = []
-        for item in book_htmls:
-            raw_genre = item.find_all('a', {'class': 'genre'})
-            genre = []
-            all_refs = item.find_all('a')
-            book_links = []
-            author_links = []
-
-            for i in all_refs:
-                if '/b/' in i['href']:
-                    book_links.append(i)
-
-            for i in all_refs:
-                if '/a/' in i['href']:
-                    author_links.append(i)
-
-            title = book_links[0].text
-            book_addr = book_links.pop(0)['href']
-            download_links = {}
-            authors = []
-
-            download_links['page'] = self.web_domains[self.domain_index] + book_addr[1:]
-            for link in book_links:
-                download_links[link['href'][link['href'].rfind('/') + 1:]] = self.web_domains[self.domain_index] \
-                                                                             + link['href'][1:]
-
-            for aut in author_links:
-                authors.append({'name': aut.text, 'link': aut['href']})
-
-            for i in raw_genre:  # Genre parsing
-                genre.append({'name': i.text, 'link': i['href']})
-
-            if len(genre) == 0:
-                genre = old_genre
-            old_genre = genre
-
-            books.append(Book(title=title,
-                              genre=genre,
-                              author=authors,
-                              links=download_links,
-                              fb_inst=self,
-                              force_load_description=force_description))
-            if len(books) == limit and (limit > 0 or limit is not None):
-                break
         return books
 
     def make_book_list(self, **kwargs):
@@ -458,40 +525,49 @@ class Flibusta:
         returns list of books object(inherited from dict)
         if no books were found, returns empty list
         """
-        method = 'makebooklist?'
-
-        # Cooking parameters for url
-        params = {'ab': kwargs.get('ab', 'ab1'),  # have no idea what that is
-                  't': kwargs.get('title'),  # book Title
-                  'sort': kwargs.get('sort', 'sd1'),  # Sorting. By title (st1,st2), By date (sd1, sd2)
-                  'ln': kwargs.get('lastname'),  # author Lastname
-                  'fn': kwargs.get('firstname'),  # author Firstname
-                  'mn': kwargs.get('patronymic'),  # author OTCHESTVO
-                  'g': kwargs.get('genre'),  # Genre
-                  's1': kwargs.get('filesize'),  # min filesize
-                  's2': '',  # max filesize
-                  'issueYearMin': kwargs.get('years'),  # Years
-                  'issueYearMax': ''
-                  }
-        params = self._pack_params(params)
-
-        # Fetching data
-        data = None
-        if not self.web_domains and not self.local_catalogue:
-            return 'No data sources defined.'
-
-        # Check if site can be found
-        while data is None and self.domain_index < len(self.web_domains):
-            req_url = self.web_domains[self.domain_index] + method + params
-            print(f'loading {req_url}')
-            data = self._perform_request(req_url, '<form name="bk" action="#">')
-        else:
-            if data is None:
-                return 'no data was recieved'
         answer = []
-        if data != 'Не нашлось ни единой книги, удовлетворяющей вашим требованиям.':
-            answer = self._parse_book_list_result(html=data,
-                                                  limit=kwargs.get('limit'),
-                                                  force_description=kwargs.get('force_description', False))
+        if self.local_catalog is None:
+            method = 'makebooklist?'
 
+            # Cooking parameters for url
+            params = {'ab': kwargs.get('ab', 'ab1'),  # have no idea what that is
+                      't': kwargs.get('title'),  # book Title
+                      'sort': kwargs.get('sort', 'sd1'),  # Sorting. By title (st1,st2), By date (sd1, sd2)
+                      'ln': kwargs.get('lastname'),  # author Lastname
+                      'fn': kwargs.get('firstname'),  # author Firstname
+                      'mn': kwargs.get('patronymic'),  # author OTCHESTVO
+                      'g': kwargs.get('genre'),  # Genre
+                      's1': kwargs.get('filesize'),  # min filesize
+                      's2': '',  # max filesize
+                      'issueYearMin': kwargs.get('years'),  # Years
+                      'issueYearMax': ''
+                      }
+            params = self._pack_params(params)
+
+            if isinstance(self.config, dict):
+                limit = self.config.get('book_limit', 0)
+            else:
+                limit = kwargs.get('limit', 0)
+
+            # Fetching data
+            data = None
+            if not Flibusta.web_domains and not self.local_catalog:
+                logging.error('No data source defined')
+                return []
+
+            # Check if site can be found
+            while data is None and self.domain_index < len(Flibusta.web_domains) and data != 'noway':
+                req_url = Flibusta.web_domains[self.domain_index] + method + params
+                data = self._perform_request(req_url, '<form name="bk" action="#">')
+            else:
+                if data is None:
+                    logging.error('Could not recieve data')
+                    return []
+            if data != 'Не нашлось ни единой книги, удовлетворяющей вашим требованиям.':
+                answer = self._parse_book_list_result(html=data,
+                                                      limit=limit,
+                                                      force_description=kwargs.get('force_description', False))
+        else:
+            raise NotImplementedError("Local catalogue is not implenented yet.")
+        logging.info(f'returned {len(answer)} books')
         return answer
